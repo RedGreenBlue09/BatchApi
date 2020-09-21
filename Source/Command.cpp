@@ -22,7 +22,6 @@ COORD      GetLargestWindowSize ();
 COORD      GetCursorPosition    ();
 int        SetCursorPosition    (SHORT& x, SHORT& y);
 int        SetTextAttribute     (uint& attr);
-string     GetTitle             ();
 
 namespace Command {
 	void help(string_view programName) {
@@ -87,13 +86,13 @@ namespace Command {
 
 	int setsize(int& argc, char** argv) {
 		bool option_exist = false;
-		bool option_f = false;
+		bool option_fsz = false;
 		if (argc > 6) {
 			// This loop is to avoid rewriting if another option was added
 			for (int count = 6; count < argc; ++count) {
 				if (toLower(argv[count]) == "/fsz") {
 					option_exist = true;
-					option_f = true;
+					option_fsz = true;
 				}
 			}
 			if (option_exist == false) {
@@ -133,7 +132,7 @@ namespace Command {
 		SHORT bufY = (SHORT)stoul(argv[3]);
 		SHORT winX = (SHORT)stoul(argv[4]);
 		SHORT winY = (SHORT)stoul(argv[5]);
-		if (option_f == true) {
+		if (option_fsz == true) {
 			COORD maxWinSize = GetLargestWindowSize();
 			if (maxWinSize.X < winX) {
 				winX = maxWinSize.X;
@@ -230,10 +229,9 @@ namespace Command {
 
 	int setattr(char** argv) {
 		if (isHex(toLower(argv[2])) == true) {
-			uint attr = stoul(argv[2], nullptr, 16);
-			if (int errorCode = SetTextAttribute(attr) == 0) {
-				cerr << "Failed to change text attributes.\r\n" << flush;
-				return -1;
+			uint attr = strtoul(argv[2], nullptr, 16);
+			if (int errorCode = SetTextAttribute(attr) != 0) {
+				return errorCode;
 			}
 		} else {
 			cerr << "Invalid hex number entered.\r\n" << flush;
@@ -243,9 +241,10 @@ namespace Command {
 	}
 
 	int gettitle() {
-		string title = GetTitle();
-		if (int errorCode = GetLastError() != 0) {
-			return errorCode;
+		char title[MAX_PATH];
+		if (!GetConsoleTitleA(title, MAX_PATH)) {
+			cerr << "Failed to get console title.\r\n";
+			return GetLastError();
 		} else {
 			cout << title << "\r\n" << flush;
 			return 0;
@@ -259,7 +258,7 @@ namespace Command {
 			++cmdLine;
 		}
 		wchar_t space[2] = L" ";
-		while (*cmdLine == (uint)space[0]) {    // *cmdLine is first character of cmdLine.
+		while (*cmdLine == (uint)space[0]) {       // *cmdLine is first character of cmdLine.
 			++cmdLine;
 		}
 		SetConsoleTitleW(cmdLine);

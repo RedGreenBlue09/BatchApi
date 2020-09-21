@@ -59,7 +59,8 @@ COORD GetLargestWindowSize() {
 }
 
 // Max size compares to the console buffer.
-/* COORD GetLargestWindowSize2() {
+/*
+COORD GetLargestWindowSize2() {
 	CONSOLE_SCREEN_BUFFER_INFO cbsi;
 	if (GetConsoleScreenBufferInfo(handle, &cbsi)) {
 		return cbsi.dwMaximumWindowSize;
@@ -68,7 +69,8 @@ COORD GetLargestWindowSize() {
 		cerr << "Failed to get window size.\r\n" << flush;
 		return { 0, 0 };
 	}
-} */
+}
+*/
 
 COORD GetCursorPosition() {
 	CONSOLE_SCREEN_BUFFER_INFO cbsi;
@@ -97,18 +99,3 @@ int SetTextAttribute(uint &attr) {
 	return 0;
 }
 
-string GetTitle() {
-	char title[MAX_PATH];
-	if (!GetConsoleTitleA(title, MAX_PATH)) {
-		return "Failed to get console title.";
-	}
-	return title;
-
-}
-
-int SetTitle(string_view title) {
-	if (!SetConsoleTitleA(&title[0])) {
-		return GetLastError();
-	}
-	return 0;
-}
