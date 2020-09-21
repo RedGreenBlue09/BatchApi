@@ -8,21 +8,7 @@ using uint = unsigned int;
 constexpr int buildNumber = 6;
 
 // Basic.cpp
-string     toLower         (string_view str);
-bool       isNumber        (string_view num);
-bool       isHex           (string_view num);
-string     WideToMultiByte (wstring wstr, uint cp);
-
-// WinApi.cpp
-COORD      GetBufferSize        ();
-int        ResizeBuffer         (SHORT& x, SHORT& y);
-SMALL_RECT GetWindowSize        ();
-int        ResizeWindow         (SHORT& x, SHORT& y);
-COORD      GetLargestWindowSize ();
-COORD      GetCursorPosition    ();
-int        SetCursorPosition    (SHORT& x, SHORT& y);
-int        SetTextAttribute     (uint &attr);
-string     GetTitle             ();
+string toLower(string_view str);
 
 // Command.cpp
 namespace Command {
