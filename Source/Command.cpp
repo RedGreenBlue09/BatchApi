@@ -6,62 +6,71 @@
 
 using namespace std;
 using uint = unsigned int;
-constexpr int buildNumber = 1;
+using ushort = unsigned short;
+constexpr int buildNumber = 2;
 
 // Basic.cpp
-string     toLower         (string_view str);
-bool       isNumber        (string_view num);
-bool       isHex           (string_view num);
+string  toLower   (string_view str);
+bool    isNumber  (string_view num);
+bool    isHex     (string_view num);
 
 // WinApi.cpp
-COORD      GetBufferSize        ();
-int        ResizeBuffer         (SHORT& x, SHORT& y);
-SMALL_RECT GetWindowSize        ();
-int        ResizeWindow         (SHORT& x, SHORT& y);
-COORD      GetLargestWindowSize ();
-COORD      GetCursorPosition    ();
-int        SetCursorPosition    (SHORT& x, SHORT& y);
-int        SetTextAttribute     (uint& attr);
+int     GetBufferSize         (OUT COORD& bufferSize);
+int     ResizeBuffer          (SHORT& x, SHORT& y);
+int     GetWindowSize         (OUT SMALL_RECT& windowSize);
+int     ResizeWindow          (SHORT& x, SHORT& y);
+int     GetLargestWindowSize  (OUT COORD& lSize);
+int     GetCursorPosition     (OUT COORD& cursorPos);
+int     SetCursorPosition     (SHORT& x, SHORT& y);
+int     SetTextAttribute      (uint& attr);
+int     SetSpecTextAttribute  (ushort* attr, uint& length, COORD coord);
+int     CoordToLength         (COORD& a, COORD& b, OUT uint& totalLen);
 
 namespace Command {
 	void help(string_view programName) {
 		string help;
-		help += "Customize a Windows Command Processor window.\r\n"
-			"\r\n  ";
+		help += "\n"
+				"Customize a Windows Command Processor window.\r\n"
+				"\r\n  ";
 		help += programName; help += " Command [Options...]\r\n"
-			"\r\n"
-			"Commands:\r\n"
-			"  help               Show this help message.\r\n"
-			"  ver                Show build number.\r\n"
-			"  getsize BufferX|BufferY|WindowX|WindowY\r\n"
-			"                     Get current buffer size or window size.\r\n"
-			"  setsize BufferX BufferY WindowX WindowY\r\n"
-			"                     Resize the console buffer and window.\r\n"
-			"  getmaxsize         Get maximum possible window size\r\n"
-			"                     that fit your screen.\r\n"
-			"  getcursor X|Y      Get current cursor position.\r\n"
-			"  setcursor X Y      Set cursor position.\r\n"
-			"  setattr Attr       Set text attributes.\r\n"
-			"  gettitle           Get current title.\r\n"
-			"  settitle Title     Set title. (\"title\" alternative)\r\n"
-			"\r\n"
-			"Options:\r\n"
-			"  /fsz       Resize the window to max size\r\n"
-			"             when the requested size is larger than possible size.\r\n"
-			"  /?  /help  Show help message of a command. (Comming Soon!)\r\n"
-			;
+				"\r\n"
+				"Commands:\r\n"
+				"  Name [Args]             Description\r\n"
+				"  --------------          --------------\r\n"
+				"  help                    Show this help message.\r\n"
+				"  ver                     Show build number.\r\n"
+				"  getsize BufferX|BufferY|WindowX|WindowY\r\n"
+				"                          Get current buffer size or window size.\r\n"
+				"  setsize BufferX BufferY WindowX WindowY [/f]\r\n"
+				"                          Resize the console buffer and window.\r\n"
+				"  getmaxsize              Get maximum possible window size\r\n"
+				"                          that fit your screen.\r\n"
+				"  getcursor X|Y           Get current cursor position.\r\n"
+				"  setcursor X Y           Set cursor position.\r\n"
+				"  setattr Attr [/c]       Set text attributes.\r\n"
+				"  gettitle                Get current title.\r\n"
+				"  settitle Title          Set title. (\"title\" alternative)\r\n"
+				"\r\n"
+				"Options:\r\n"
+				"  Name       Command      Description\r\n"
+				"  -------    ----------   --------------\r\n"
+				"  /fsz       setsize      Resize the window to max size when the requested size\r\n"
+				"                          is larger than possible size.\r\n"
+				"  /c x1 y1 x2 y2"
+				"             setattr      Specific the coordinates of characters\r\n"
+				"                          to apply attributes.\r\n"
+				"  /?  /help  <All>        Show help message of a command. (Comming Soon!)\r\n"
+				;
 		cout << help << flush;
 	}
 
 	int getsize(char** argv) {
-		COORD bufferSize = GetBufferSize();
-		if (int errorCode = GetLastError() != 0) {
-			cerr << "Failed to get console buffer size.";
+		COORD bufferSize = { 0, 0 };
+		SMALL_RECT windowSize = { 0, 0, 0, 0 };
+		if (int errorCode = GetBufferSize(OUT bufferSize) != 0) {
 			return errorCode;
 		}
-		SMALL_RECT windowSize = GetWindowSize();
-		if (int errorCode = GetLastError() != 0) {
-			cerr << "Failed to get window size.";
+		if (int errorCode = GetWindowSize(OUT windowSize) != 0) {
 			return errorCode;
 		}
 		if (toLower(argv[2]) == "bufferx") {
@@ -71,10 +80,10 @@ namespace Command {
 			cout << bufferSize.Y << "\r\n" << flush;
 			return 0;
 		} else if (toLower(argv[2]) == "windowx") {
-			cout << windowSize.Right + 1 - GetWindowSize().Left << "\r\n" << flush;
+			cout << windowSize.Right + 1 - windowSize.Left << "\r\n" << flush;
 			return 0;
 		} else if (toLower(argv[2]) == "windowy") {
-			cout << windowSize.Bottom + 1 - GetWindowSize().Top << "\r\n" << flush;
+			cout << windowSize.Bottom + 1 - windowSize.Top << "\r\n" << flush;
 			return 0;
 		} else {
 			cerr << "Invalid argument(s) entered.\r\n" << flush;
@@ -88,7 +97,7 @@ namespace Command {
 		bool option_exist = false;
 		bool option_fsz = false;
 		if (argc > 6) {
-			// This loop is to avoid rewriting if another option was added
+			// This loop is to avoid rewriting if another option was added.
 			for (int count = 6; count < argc; ++count) {
 				if (toLower(argv[count]) == "/fsz") {
 					option_exist = true;
@@ -108,7 +117,7 @@ namespace Command {
 			isNumber(argv[5]) == false
 			) {
 			cerr << "Invalid number entered.\r\n"
-				"All values must be natural numbers smaller than 32767.\r\n" << flush;
+					"All values must be natural numbers smaller than 32767.\r\n" << flush;
 			return 1;
 		} else if (
 			// CMD's buffer size limit is 32766 cols and 32766 lines.
@@ -119,11 +128,15 @@ namespace Command {
 			strtoul(argv[5], nullptr, 10) > 32766
 			) {
 			cerr << "Too large number entered.\r\n"
-				"All values must be natural numbers smaller than 32767.\r\n" << flush;
+					"All values must be natural numbers smaller than 32767.\r\n" << flush;
 			return 1;
 		}
-		SHORT currentWinX = (SHORT)GetWindowSize().Right;
-		SHORT currentWinY = (SHORT)GetWindowSize().Bottom;
+		SMALL_RECT windowSize = { 0, 0, 0, 0 };
+		if (int errorCode = GetWindowSize(OUT windowSize) != 0) {
+			return errorCode;
+		}
+		SHORT currentWinX = windowSize.Right;
+		SHORT currentWinY = windowSize.Bottom;
 		if (currentWinX == 0 || currentWinY == 0) {
 			return 3;
 		}
@@ -133,7 +146,10 @@ namespace Command {
 		SHORT winX = (SHORT)stoul(argv[4]);
 		SHORT winY = (SHORT)stoul(argv[5]);
 		if (option_fsz == true) {
-			COORD maxWinSize = GetLargestWindowSize();
+			COORD maxWinSize = { 0, 0 };
+			if (int errorCode = GetLargestWindowSize(OUT maxWinSize) != 0) {
+				return errorCode;
+			}
 			if (maxWinSize.X < winX) {
 				winX = maxWinSize.X;
 			}
@@ -172,11 +188,15 @@ namespace Command {
 	}
 
 	int getmaxsize(char** argv) {
+		COORD maxSize;
+		if (int errorCode = GetLargestWindowSize(OUT maxSize) != 0) {
+			return errorCode;
+		}
 		if (toLower(argv[2]) == "x") {
-			cout << GetLargestWindowSize().X << "\r\n" << flush;
+			cout << maxSize.X << "\r\n" << flush;
 			return 0;
 		} else if (toLower(argv[2]) == "y") {
-			cout << GetLargestWindowSize().Y << "\r\n" << flush;
+			cout << maxSize.Y << "\r\n" << flush;
 			return 0;
 		} else {
 			cerr << "Invalid argument(s) entered.\r\n" << flush;
@@ -187,11 +207,15 @@ namespace Command {
 	}
 
 	int getcursor(char** argv) {
+		COORD cursorPos = { 0, 0 };
+		if (int errorCode = GetCursorPosition(OUT cursorPos) != 0) {
+			return errorCode;
+		}
 		if (toLower(argv[2]) == "x") {
-			cout << GetCursorPosition().X << "\r\n" << flush;
+			cout << cursorPos.X << "\r\n" << flush;
 			return 0;
 		} else if (toLower(argv[2]) == "y") {
-			cout << GetCursorPosition().Y << "\r\n" << flush;
+			cout << cursorPos.Y << "\r\n" << flush;
 			return 0;
 		} else {
 			cerr << "Invalid argument(s) entered.\r\n" << flush;
@@ -227,11 +251,74 @@ namespace Command {
 		return 0;
 	}
 
-	int setattr(char** argv) {
+	int setattr(int& argc, char** argv) {
+		bool option_exist = false;
+		bool option_c = false;
+		if (argc > 3) {
+			// This loop is to avoid rewriting if another option was added.
+			for (int count = 3; count < argc; ++count) {
+				if (toLower(argv[count]) == "/c") {
+					if (argc < 7) {
+						cerr << "Invalid option(s) entered.\r\n" << flush;
+						help(argv[0]);
+						return 1;
+					}
+					option_exist = true;
+					option_c = true;
+				}
+			}
+			if (option_exist == false) {
+				cerr << "Invalid option(s) entered.\r\n" << flush;
+				help(argv[0]);
+				return 1;
+			}
+		}
 		if (isHex(toLower(argv[2])) == true) {
-			uint attr = strtoul(argv[2], nullptr, 16);
-			if (int errorCode = SetTextAttribute(attr) != 0) {
-				return errorCode;
+			uint attr = stoul(argv[2], nullptr, 16);
+			if (option_c == true) {
+				if (
+					isNumber(argv[4]) == false ||
+					isNumber(argv[5]) == false ||
+					isNumber(argv[6]) == false ||
+					isNumber(argv[7]) == false
+					) {
+					cerr << "Invalid number entered.\r\n"
+							"All values must be natural numbers smaller than 32767.\r\n" << flush;
+					return 1;
+				} else if (
+					// CMD's buffer size limit is 32766 cols and 32766 lines.
+					// Use strtoul() to prevent out of range exception.
+					strtoul(argv[4], nullptr, 10) > 32766 ||
+					strtoul(argv[5], nullptr, 10) > 32766 ||
+					strtoul(argv[6], nullptr, 10) > 32766 ||
+					strtoul(argv[7], nullptr, 10) > 32766
+					) {
+					cerr << "Too large number entered.\r\n"
+							"All values must be natural numbers smaller than 32767.\r\n" << flush;
+					return 1;
+				}
+				SHORT x1 = (SHORT)stoul(argv[4], nullptr, 10);
+				SHORT y1 = (SHORT)stoul(argv[5], nullptr, 10);
+				SHORT x2 = (SHORT)stoul(argv[6], nullptr, 10);
+				SHORT y2 = (SHORT)stoul(argv[7], nullptr, 10);
+				COORD coordA = { x1, y1 };
+				COORD coordB = { x2, y2 };
+				uint length = 0;
+				if (int errorCode = CoordToLength(coordA, coordB, OUT length) != 0) {
+					return errorCode;
+				}
+				ushort* attrs = new ushort[length]{};
+				for (uint count = 0; count < length; ++count) {
+					attrs[count] = (ushort)attr;
+				}
+				SetSpecTextAttribute(attrs, length, coordA);
+				delete[] attrs;
+				return 0;
+			} else {
+				if (int errorCode = SetTextAttribute(attr) != 0) {
+					return errorCode;
+				}
+				return 0;
 			}
 		} else {
 			cerr << "Invalid hex number entered.\r\n" << flush;

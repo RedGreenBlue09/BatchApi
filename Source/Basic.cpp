@@ -12,8 +12,7 @@ string toLower(string_view str) {
 		char at = str.at(count);
 		if ((at >= 'A') && (at <= 'Z')) {
 			answer += at + 32; // +32 is the distance between lowercase char and uppercase char in ascii.
-		}
-		else {
+		} else {
 			answer += at;
 		}
 	}
@@ -33,11 +32,9 @@ bool isHex(string_view num) {
 	for (uint cc = 0; cc < num.length(); ++cc) {
 		if (num.at(cc) < '0') {
 			return false;
-		}
-		else if ((num.at(cc) > '9') && (num.at(cc) < 'a')) {
+		} else if ((num.at(cc) > '9') && (num.at(cc) < 'a')) {
 			return false;
-		}
-		else if (num.at(cc) > 'f') {
+		} else if (num.at(cc) > 'f') {
 			return false;
 		}
 	}

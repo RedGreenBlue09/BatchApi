@@ -18,7 +18,7 @@ namespace Command {
 	int    getmaxsize (char** argv);
 	int    getcursor  (char** argv);
 	int    setcursor  (char** argv);
-	int    setattr    (char** argv);
+	int    setattr    (int &argc, char** argv);
 	int    gettitle   ();
 	int    settitle   (char** argv);
 }
@@ -81,13 +81,7 @@ int main(int argc, char** argv) {
 			return 1;
 		}
 	} else if (toLower(argv[1]) == "setattr") {
-		if (argc == 3) {
-			return Command::setattr(argv);
-		} else {
-			cerr << "Invalid argument(s) entered.\r\n" << flush;
-			Command::help(argv[0]);
-			return 1;
-		}
+		return Command::setattr(argc, argv);
 	} else if (toLower(argv[1]) == "gettitle") {
 		if (argc == 2) {
 			return Command::gettitle();

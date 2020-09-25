@@ -4,20 +4,21 @@
 
 using namespace std;
 using uint = unsigned int;
+using ushort = unsigned short;
 const HANDLE handle = GetStdHandle(STD_OUTPUT_HANDLE);
 
 // Basic.cpp
 string WideToMultiByte(wstring wstr, uint cp);
 
 // WinApi.cpp
-COORD GetBufferSize() {
+int GetBufferSize(OUT COORD& bufferSize) {
 	CONSOLE_SCREEN_BUFFER_INFO cbsi;
-	if (GetConsoleScreenBufferInfo(handle, &cbsi)) {
-		return cbsi.dwSize;
-	} else {
-		cerr << "Failed to get buffer size.\r\n" << flush;
-		return { 0, 0 };
+	if (!GetConsoleScreenBufferInfo(handle, &cbsi)) {
+		cerr << "Failed to get console buffer size.\r\n" << flush;
+		return 3;
 	}
+	bufferSize = cbsi.dwSize;
+	return 0;
 }
 
 int ResizeBuffer(SHORT& x, SHORT& y) {
@@ -28,14 +29,14 @@ int ResizeBuffer(SHORT& x, SHORT& y) {
 	return 0;
 }
 
-SMALL_RECT GetWindowSize() {
+int GetWindowSize(OUT SMALL_RECT& windowSize) {
 	CONSOLE_SCREEN_BUFFER_INFO cbsi;
-	if (GetConsoleScreenBufferInfo(handle, &cbsi)) {
-		return cbsi.srWindow;
-	} else {
+	if (!GetConsoleScreenBufferInfo(handle, &cbsi)) {
 		cerr << "Failed to get window size.\r\n" << flush;
-		return { 0, 0, 0, 0 };
+		return 3;
 	}
+	windowSize = cbsi.srWindow;
+	return 0;
 }
 
 int ResizeWindow(SHORT& x, SHORT& y) {
@@ -48,38 +49,24 @@ int ResizeWindow(SHORT& x, SHORT& y) {
 }
 
 // Max possible size compares to the screen.
-COORD GetLargestWindowSize() {
+int GetLargestWindowSize(OUT COORD& lSize) {
 	COORD lsize = GetLargestConsoleWindowSize(handle);
-	if (GetLastError() == 0) {
-		return lsize;
-	} else {
+	if (int errorCode = GetLastError() != 0) {
 		cerr << "Failed to get largest posible window size.\r\n" << flush;
-		return { 0, 0 };
+		return errorCode;
 	}
+	lSize = lsize;
+	return 0;
 }
 
-// Max size compares to the console buffer.
-/*
-COORD GetLargestWindowSize2() {
+int GetCursorPosition(OUT COORD& cursorPos) {
 	CONSOLE_SCREEN_BUFFER_INFO cbsi;
-	if (GetConsoleScreenBufferInfo(handle, &cbsi)) {
-		return cbsi.dwMaximumWindowSize;
-	}
-	else {
-		cerr << "Failed to get window size.\r\n" << flush;
-		return { 0, 0 };
-	}
-}
-*/
-
-COORD GetCursorPosition() {
-	CONSOLE_SCREEN_BUFFER_INFO cbsi;
-	if (GetConsoleScreenBufferInfo(handle, &cbsi)) {
-		return cbsi.dwCursorPosition;
-	} else {
+	if (!GetConsoleScreenBufferInfo(handle, &cbsi)) {
 		cerr << "Failed to get cursor position.\r\n" << flush;
-		return { 0, 0 };
+		return GetLastError();
 	}
+	cursorPos = cbsi.dwCursorPosition;
+	return 0;
 }
 
 int SetCursorPosition(SHORT& x, SHORT& y) {
@@ -91,7 +78,7 @@ int SetCursorPosition(SHORT& x, SHORT& y) {
 	return 0;
 }
 
-int SetTextAttribute(uint &attr) {
+int SetTextAttribute(uint& attr) {
 	if (!SetConsoleTextAttribute(handle, attr)) {
 		cerr << "Failed to change text attributes.\r\n" << flush;
 		return GetLastError();
@@ -99,3 +86,31 @@ int SetTextAttribute(uint &attr) {
 	return 0;
 }
 
+int SetSpecTextAttribute(ushort* attr, uint& length, COORD coord) {
+	DWORD written = 0;
+	LPDWORD lpWritten = &written;
+	if (!WriteConsoleOutputAttribute(handle, attr, length, coord, lpWritten)) {
+		cerr << "Failed to change text attributes.\r\n" << flush;
+		return GetLastError();
+	}
+	return 0;
+}
+
+int CoordToLength(COORD& a, COORD& b, OUT uint& totalLen) {
+	if (a.Y > b.Y) {
+		cerr << "Invalid coordinates passed.\r\n";
+		return 2;
+	} else if ((a.Y == b.Y) && (a.X > b.X)) {
+		cerr << "Invalid coordinates passed.\r\n";
+		return 2;
+	}
+	COORD bufferSize = { 0, 0 };
+	if (int errorCode = GetBufferSize(OUT bufferSize) != 0) {
+		return errorCode;
+	}
+	int aLineLen = bufferSize.X - a.X;
+	int bLineLen = bufferSize.X - (bufferSize.X - b.X);
+	int mLineLen = (b.Y - a.Y - 1) * bufferSize.X;
+	totalLen = aLineLen + bLineLen + mLineLen + 1;
+	return 0;
+}
