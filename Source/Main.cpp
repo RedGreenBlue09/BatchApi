@@ -5,7 +5,7 @@
 
 using namespace std;
 using uint = unsigned int;
-constexpr int buildNumber = 3;
+constexpr int buildNumber = 2;
 
 // Basic.cpp
 string toLower(string_view str);
